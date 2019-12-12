@@ -5,16 +5,24 @@
 In order to use PLUMED with Gromacs, PLUMED must be compiled first.
 Once that PLUMED has been compiled, Gromacs needs to be 'patched'.
 This means that some lines of the mdrun executable will be changed in order to interface the two codes.
-After 'patching' Gromacs it should be compiled as usual.
+After 'patching', Gromacs should be compiled as usual.
 
 There are three patching modes, runtime, shared and static.
-The preferred one is runtime since it allows to change PLUMED version simply by changing an environment variable.
-In many clusters it is not straightforward to make the runtime patch work.
-Fortunately it seems to work properly on tiger.
+The preferred one is runtime since it allows to change PLUMED's version simply by changing an environment variable.
+In many clusters it is not straightforward to make the runtime patching mode work.
+Fortunately it seems to work properly on tiger (traverse? della?)
 
-This is a compilation script:
+## Running Gromacs and PLUMED
+
+If Gromacs was patched in runtime mode then the desired version of PLUMED must be sourced (see an example below).
+Afterwards, the flag -plumed should be used to call PLUMED from Gromacs.
+Many parts of PLUMED are paralellized using MPI and openMP.
+Typically, PLUMED will use the same number of MPI processes and openMP threads as Gromacs is using.
+PLUMED cannot take advantage of the GPUs (for now).
 
 ## TigerGPU
+
+This is a compilation script:
 
 ```bash
 #!/bin/bash
@@ -102,7 +110,6 @@ tests/regressiontests-${version}/gmxtest.pl all
 make install
 ```
 
-The flag -plumed should be used to call PLUMED from Gromacs.
 Below is a sample Slurm script:
 
 ```bash
