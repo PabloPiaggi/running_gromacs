@@ -10,7 +10,7 @@ After 'patching', Gromacs should be compiled as usual.
 There are three patching modes, runtime, shared and static.
 The preferred one is runtime since it allows to change PLUMED's version simply by changing an environment variable.
 In many clusters it is not straightforward to make the runtime patching mode work.
-Fortunately it seems to work properly on tiger (traverse? della?)
+Fortunately it seems to work properly on tiger and traverse (della?)
 
 ## Running Gromacs and PLUMED
 
@@ -18,7 +18,7 @@ If Gromacs was patched in runtime mode then the desired version of PLUMED must b
 Afterwards, the flag -plumed should be used to call PLUMED from Gromacs.
 Many parts of PLUMED are paralellized using MPI and openMP.
 Typically, PLUMED will use the same number of MPI processes and openMP threads as Gromacs is using.
-PLUMED cannot take advantage of the GPUs (for now).
+PLUMED cannot take advantage of the GPUs.
 
 ## TigerGPU
 
@@ -138,4 +138,105 @@ export GMX_MAXBACKUP=-1
 # source ~/installation-path/plumed2-v2.6/sourceme.sh
 
 srun mdrun_mpi -s topol.tpr -gpu_id 0 -maxh 1 -ntomp ${OMP_NUM_THREADS} -plumed plumed.dat
+```
+
+## Traverse
+
+To compile Gromacs and PLUMED on Traverse you can use the script below:
+
+```bash
+#!/bin/bash
+version_fftw=3.3.8
+version_gmx=2019.4
+version_plumed=v2.6
+
+#############################################################
+# build a fast version of FFTW
+#############################################################
+wget ftp://ftp.fftw.org/pub/fftw/fftw-${version_fftw}.tar.gz
+tar -zxvf fftw-${version_fftw}.tar.gz
+cd fftw-${version_fftw}
+
+module purge
+module load rh/devtoolset/8
+
+./configure CC=gcc CFLAGS="-Ofast -mcpu=power9 -mtune=power9 -DNDEBUG" --prefix=$HOME/.local \
+--enable-shared --enable-single --enable-vsx --disable-fortran
+
+make
+make install
+cd ..
+
+#############################################################
+# build plumed
+#############################################################
+
+module purge
+module load rh/devtoolset/7
+module load openmpi/devtoolset-8/4.0.1/64
+
+git clone -b ${version_plumed} https://github.com/plumed/plumed2 plumed2-${version_plumed}
+cd plumed2-${version_plumed}
+OPTFLAGS="-Ofast -mcpu=power9 -mtune=power9 -mvsx -DNDEBUG"
+./configure --enable-modules=all CXXFLAGS="$OPTFLAGS"
+make -j 10
+source sourceme.sh
+cd ../
+
+#############################################################
+# build gmx (for single node jobs)
+#############################################################
+wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-${version_gmx}.tar.gz
+tar -zxf gromacs-${version_gmx}.tar.gz
+cd gromacs-${version_gmx}
+plumed patch -p -e gromacs-2019.4 --runtime
+mkdir build_stage1
+cd build_stage1
+
+module load cudatoolkit/10.2
+
+OPTFLAGS="-Ofast -mcpu=power9 -mtune=power9 -mvsx -DNDEBUG"
+
+cmake3 .. -DCMAKE_BUILD_TYPE=Release \
+-DCMAKE_C_COMPILER=gcc -DCMAKE_C_FLAGS_RELEASE="$OPTFLAGS" \
+-DCMAKE_CXX_COMPILER=g++ -DCMAKE_CXX_FLAGS_RELEASE="$OPTFLAGS" \
+-DGMX_BUILD_MDRUN_ONLY=OFF -DGMX_MPI=OFF -DGMX_OPENMP=ON \
+-DGMX_SIMD=IBM_VSX -DGMX_DOUBLE=OFF \
+-DGMX_FFT_LIBRARY=fftw3 \
+-DFFTWF_LIBRARY=$HOME/.local/include \
+-DFFTWF_LIBRARY=$HOME/.local/lib/libfftw3f.so \
+-DGMX_GPU=ON -DGMX_CUDA_TARGET_SM=70 \
+-DGMX_EXTERNAL_BLAS=ON -DGMX_BLAS_USER=/usr/lib64/libessl.so \
+-DGMX_EXTERNAL_LAPACK=ON -DGMX_LAPACK_USER=/usr/lib64/libessl.so \
+-DCMAKE_INSTALL_PREFIX=$HOME/.local \
+-DGMX_COOL_QUOTES=OFF -DREGRESSIONTEST_DOWNLOAD=ON
+
+make -j 10
+make check
+make install
+
+#############################################################
+# build mdrun_mpi (for multi-node jobs)
+#############################################################
+mkdir build_stage2
+cd build_stage2
+
+cmake3 .. -DCMAKE_BUILD_TYPE=Release \
+-DCMAKE_C_COMPILER=gcc -DCMAKE_C_FLAGS_RELEASE="$OPTFLAGS" \
+-DCMAKE_CXX_COMPILER=g++ -DCMAKE_CXX_FLAGS_RELEASE="$OPTFLAGS" \
+-DGMX_BUILD_MDRUN_ONLY=ON -DGMX_MPI=ON -DGMX_OPENMP=ON \
+-DGMX_SIMD=IBM_VSX -DGMX_DOUBLE=OFF \
+-DGMX_FFT_LIBRARY=fftw3 \
+-DFFTWF_LIBRARY=$HOME/.local/include \
+-DFFTWF_LIBRARY=$HOME/.local/lib/libfftw3f.so \
+-DGMX_GPU=ON -DGMX_CUDA_TARGET_SM=70 \
+-DGMX_EXTERNAL_BLAS=ON -DGMX_BLAS_USER=/usr/lib64/libessl.so \
+-DGMX_EXTERNAL_LAPACK=ON -DGMX_LAPACK_USER=/usr/lib64/libessl.so \
+-DCMAKE_INSTALL_PREFIX=$HOME/.local \
+-DGMX_COOL_QUOTES=OFF -DREGRESSIONTEST_DOWNLOAD=ON
+
+make -j 10
+source ../build_stage1/scripts/GMXRC
+tests/regressiontests-${version_gmx}/gmxtest.pl all
+make install
 ```
