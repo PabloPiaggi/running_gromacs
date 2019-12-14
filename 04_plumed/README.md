@@ -9,8 +9,8 @@ After 'patching', Gromacs should be compiled as usual.
 
 There are three patching modes, runtime, shared and static.
 The preferred one is runtime since it allows to change PLUMED's version simply by changing an environment variable.
-In many clusters it is not straightforward to make the runtime patching mode work.
-Fortunately it seems to work properly on tiger and traverse (della?)
+In many clusters it is not straightforward to make the runtime patching mode work and in these cases one must use other patching modes.
+Fortunately it seems to work properly on tiger and traverse (della?).
 
 ## Running Gromacs and PLUMED
 
@@ -240,3 +240,47 @@ source ../build_stage1/scripts/GMXRC
 tests/regressiontests-${version_gmx}/gmxtest.pl all
 make install
 ```
+
+## Benchmarks
+
+### Traverse
+
+#### 432 TIP4P/Ice molecules + Coordination number
+
+| # GPU | # MPI processes | # openMP threads | Performance (ns/day) | Performance without PLUMED (ns/day) | Ratio |
+|-------|-----------------|------------------|----------------------|-------------------------------------|-------|
+| 0     | 0               | 4                | 34.614               | 66.927                              | 0.52  |
+| 0     | 0               | 8                | 87.599               | 64.985                              | 1.35  |
+| 0     | 0               | 16               | 91.27                | 244.788                             | 0.37  |
+| 1     | 1               | 1                | 97.991               | 379.507                             | 0.26  |
+| 1     | 1               | 2                | 111.211              | 374.918                             | 0.30  |
+| 1     | 1               | 4                | 113.256              | 283.378                             | 0.40  |
+| 1     | 1               | 8                | 136.639              | 277.121                             | 0.49  |
+| 1     | 1               | 16               | 147.813              | 303.097                             | 0.49  |
+| 1     | 4               | 1                | 95.61                | 173.969                             | 0.55  |
+
+Conclusions:
+- Best performance with and without plumed corresponds to different configurations!					
+- PLUMED takes more or less half of the total time					
+- The performance of both codes is relevant					
+- Best configurations use GPUs!					
+
+#### 432 TIP4P/Ice molecules + Q6
+
+| # GPU | # MPI processes | # openMP threads | Performance (ns/day) | Performance without PLUMED (ns/day) | Ratio |
+|-------|-----------------|------------------|----------------------|-------------------------------------|-------|
+| 0     | 0               | 4                |                      | 66.927                              | 0.00  |
+| 0     | 0               | 8                |                      | 64.985                              | 0.00  |
+| 0     | 0               | 16               |                      | 244.788                             | 0.00  |
+| 1     | 1               | 1                | 22.693               | 379.507                             | 0.06  |
+| 1     | 1               | 2                | 26.963               | 374.918                             | 0.07  |
+| 1     | 1               | 4                | 23.914               | 283.378                             | 0.08  |
+| 1     | 1               | 8                |                      | 277.121                             | 0.00  |
+| 1     | 1               | 16               | 34.999               | 303.097                             | 0.12  |
+| 1     | 4               | 1                | 27.931               | 173.969                             | 0.16  |				
+
+Conclusions:
+- Performance limited by PLUMED
+- PLUMED takes 90% of the calculation time
+- Performance of Gromacs is irrelevant, for instance using 4 openMP threads for Gromacs is better than 4 MPI processes. However this doesn't show on the Gromacs+Plumed performance because for PLUMED this configurations give the same speed.
+- The advantage of using GPUs is limited.
