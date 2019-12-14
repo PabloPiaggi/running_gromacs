@@ -284,3 +284,31 @@ Conclusions:
 - PLUMED takes 90% of the calculation time
 - Performance of Gromacs is irrelevant, for instance using 4 openMP threads for Gromacs is better than 4 MPI processes. However this doesn't show on the Gromacs+Plumed performance because for PLUMED this configurations give the same speed.
 - The advantage of using GPUs is limited.
+
+### Tiger GPU
+
+#### 432 TIP4P/Ice molecules + Coordination number
+
+| # GPU | # MPI processes | # openMP threads | Performance (ns/day) | Performance without PLUMED (ns/day) | Ratio |
+|-------|-----------------|------------------|----------------------|-------------------------------------|-------|
+| 1     | 1               | 1                | 128.47               | 534.963                             | 0.24  |
+| 1     | 1               | 2                | 187.123              | 712.643                             | 0.26  |
+| 1     | 1               | 4                | 275.885              | 876.698                             | 0.31  |
+| 1     | 1               | 8                | 361.171              | 955.102                             | 0.38  |
+| 1     | 1               | 12               | 389.323              | 986.575                             | 0.39  |
+| 1     | 1               | 14               | 403.371              | 968.581                             | 0.42  |
+| 1     | 2               | 7                | 318.153              | 507.21                              | 0.63  |
+| 1     | 4               | 1                | 228.817              | 262.893                             | 0.87  |
+
+#### 432 TIP4P/Ice molecules + Q6
+
+| # GPU | # MPI processes | # openMP threads | Performance (ns/day) | Performance without PLUMED (ns/day) | Ratio |
+|-------|-----------------|------------------|----------------------|-------------------------------------|-------|
+| 1     | 1               | 1                | 26.105               | 534.963                             | 0.05  |
+| 1     | 1               | 2                | 45.993               | 712.643                             | 0.06  |
+| 1     | 1               | 4                | 78.556               | 876.698                             | 0.09  |
+| 1     | 1               | 8                | 116.164              | 955.102                             | 0.12  |
+| 1     | 1               | 12               | 126.26               | 986.575                             | 0.13  |
+| 1     | 1               | 14               | 131.739              | 968.581                             | 0.14  |
+| 1     | 2               | 7                | 130.372              | 507.21                              | 0.26  |
+| 1     | 4               | 1                | 74.349               | 262.893                             | 0.28  |
