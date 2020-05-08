@@ -241,6 +241,97 @@ tests/regressiontests-${version_gmx}/gmxtest.pl all
 make install
 ```
 
+## Della
+
+To compile Gromacs and PLUMED on Della you can use the script below:
+
+```
+#!/bin/bash
+
+module purge
+module load intel/19.0/64/19.0.1.144
+module load intel-mpi/intel/2018.3/64
+
+OPTFLAGS="-Ofast -xCORE-AVX2 -axCORE-AVX512 -DNDEBUG"
+
+#############################################################
+# PLUMED
+#############################################################
+
+plumedversion=v2.6
+git clone -b ${plumedversion} https://github.com/plumed/plumed2 plumed2-${plumedversion}
+cd plumed2-${plumedversion}
+
+#############################################################
+# starting build of plumed
+#############################################################
+
+./configure --enable-modules=all CXX=mpiicpc CXXFLAGS="$OPTFLAGS"
+make -j 10
+source sourceme.sh
+
+cd ../
+
+#############################################################
+# GROMACS
+#############################################################
+
+version=2019.4
+wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-${version}.tar.gz
+tar -zxvf gromacs-${version}.tar.gz
+cd gromacs-${version}
+plumed patch -p -e gromacs-${version} --runtime
+mkdir build_stage1
+cd build_stage1
+
+#############################################################
+# starting build of gmx (stage 1)
+#############################################################
+
+module purge
+module load intel/19.0/64/19.0.1.144
+
+
+cmake3 .. -DCMAKE_BUILD_TYPE=Release \
+-DCMAKE_C_COMPILER=icc -DCMAKE_C_FLAGS_RELEASE="$OPTFLAGS" \
+-DCMAKE_CXX_COMPILER=icpc -DCMAKE_CXX_FLAGS_RELEASE="$OPTFLAGS" \
+-DGMX_BUILD_MDRUN_ONLY=OFF -DGMX_MPI=OFF -DGMX_OPENMP=ON \
+-DGMX_DOUBLE=OFF \
+-DGMX_FFT_LIBRARY=mkl \
+-DGMX_GPU=OFF \
+-DCMAKE_INSTALL_PREFIX=$HOME/.local \
+-DGMX_COOL_QUOTES=OFF -DREGRESSIONTEST_DOWNLOAD=ON
+
+make -j 10
+make check
+make install
+
+#############################################################
+# starting build of mdrun_mpi (stage 2)
+#############################################################
+
+cd ..
+mkdir build_stage2
+cd build_stage2
+
+module load intel-mpi/intel/2018.3/64
+
+cmake3 .. -DCMAKE_BUILD_TYPE=Release \
+-DCMAKE_C_COMPILER=icc -DCMAKE_C_FLAGS_RELEASE="$OPTFLAGS" \
+-DCMAKE_CXX_COMPILER=icpc -DCMAKE_CXX_FLAGS_RELEASE="$OPTFLAGS" \
+-DGMX_BUILD_MDRUN_ONLY=ON -DGMX_MPI=ON -DGMX_OPENMP=ON \
+-DGMX_DOUBLE=OFF \
+-DGMX_FFT_LIBRARY=mkl \
+-DGMX_GPU=OFF \
+-DCMAKE_INSTALL_PREFIX=$HOME/.local \
+-DGMX_COOL_QUOTES=OFF -DREGRESSIONTEST_DOWNLOAD=ON
+
+make -j 10
+source ../build_stage1/scripts/GMXRC
+tests/regressiontests-${version}/gmxtest.pl all
+make install
+```
+
 ## Benchmarks
 
 ### Traverse
