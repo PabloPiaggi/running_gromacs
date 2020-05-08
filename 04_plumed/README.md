@@ -332,6 +332,8 @@ tests/regressiontests-${version}/gmxtest.pl all
 make install
 ```
 
+The script above works also for Gromacs 5.1.4 and Plumed v2.4.
+
 ## Benchmarks
 
 ### Traverse
